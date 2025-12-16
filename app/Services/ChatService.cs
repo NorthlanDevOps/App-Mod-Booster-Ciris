@@ -68,9 +68,9 @@ public class ChatService
 
         try
         {
-            var messages = new List<ChatMessage>
+            var messages = new List<ChatRequestMessage>
             {
-                new ChatMessage(ChatRole.System, @"You are a helpful AI assistant for an expense management system. 
+                new ChatRequestSystemMessage(@"You are a helpful AI assistant for an expense management system. 
 You can help users view, create, and manage their expenses. You have access to functions that let you interact with the database.
 When users ask about their expenses, use the available functions to retrieve real data.
 Format lists nicely with numbers or bullets. Be concise but helpful.")
@@ -79,11 +79,11 @@ Format lists nicely with numbers or bullets. Be concise but helpful.")
             // Add conversation history
             foreach (var msg in conversationHistory)
             {
-                messages.Add(new ChatMessage(ChatRole.User, msg));
+                messages.Add(new ChatRequestUserMessage(msg));
             }
 
             // Add current message
-            messages.Add(new ChatMessage(ChatRole.User, userMessage));
+            messages.Add(new ChatRequestUserMessage(userMessage));
 
             var chatCompletionsOptions = new ChatCompletionsOptions(_deploymentName, messages);
             
@@ -147,20 +147,17 @@ Format lists nicely with numbers or bullets. Be concise but helpful.")
             if (choice.FinishReason == CompletionsFinishReason.ToolCalls)
             {
                 var toolCalls = choice.Message.ToolCalls;
-                messages.Add(new ChatMessage(ChatRole.Assistant, choice.Message.Content) 
-                { 
-                    ToolCalls = choice.Message.ToolCalls 
-                });
+                
+                // Add assistant message with tool calls (using the full message from response)
+                var assistantMessage = new ChatRequestAssistantMessage(choice.Message);
+                messages.Add(assistantMessage);
 
                 foreach (var toolCall in toolCalls)
                 {
                     if (toolCall is ChatCompletionsFunctionToolCall functionToolCall)
                     {
                         var functionResult = await ExecuteFunctionAsync(functionToolCall.Name, functionToolCall.Arguments);
-                        messages.Add(new ChatMessage(ChatRole.Tool, functionResult)
-                        {
-                            ToolCallId = functionToolCall.Id
-                        });
+                        messages.Add(new ChatRequestToolMessage(functionResult, functionToolCall.Id));
                     }
                 }
 
