@@ -71,26 +71,30 @@ Format your responses in a user-friendly way using markdown for better readabili
                 },
                 Tools =
                 {
-                    ChatCompletionsFunctionToolDefinition.CreateFunctionDefinition(
-                        name: "get_all_properties",
-                        description: "Retrieves all properties from the database",
-                        parameters: BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
-                    ),
-                    ChatCompletionsFunctionToolDefinition.CreateFunctionDefinition(
-                        name: "get_all_sections",
-                        description: "Retrieves all sections from the database",
-                        parameters: BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
-                    ),
-                    ChatCompletionsFunctionToolDefinition.CreateFunctionDefinition(
-                        name: "get_all_workbases",
-                        description: "Retrieves all workbases from the database",
-                        parameters: BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
-                    ),
-                    ChatCompletionsFunctionToolDefinition.CreateFunctionDefinition(
-                        name: "get_all_users",
-                        description: "Retrieves all users from the database",
-                        parameters: BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
-                    )
+                    new ChatCompletionsFunctionToolDefinition()
+                    {
+                        Name = "get_all_properties",
+                        Description = "Retrieves all properties from the database",
+                        Parameters = BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
+                    },
+                    new ChatCompletionsFunctionToolDefinition()
+                    {
+                        Name = "get_all_sections",
+                        Description = "Retrieves all sections from the database",
+                        Parameters = BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
+                    },
+                    new ChatCompletionsFunctionToolDefinition()
+                    {
+                        Name = "get_all_workbases",
+                        Description = "Retrieves all workbases from the database",
+                        Parameters = BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
+                    },
+                    new ChatCompletionsFunctionToolDefinition()
+                    {
+                        Name = "get_all_users",
+                        Description = "Retrieves all users from the database",
+                        Parameters = BinaryData.FromObjectAsJson(new { type = "object", properties = new { } })
+                    }
                 },
                 MaxTokens = 1500,
                 Temperature = 0.7f

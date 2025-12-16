@@ -26,12 +26,12 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (var section in Model.Sections)
+            @foreach (var item in Model.Sections)
             {
                 <tr>
-                    <td>@section.SectionID</td>
-                    <td>@section.SectionName</td>
-                    <td>@section.WorkbaseID</td>
+                    <td>@item.SectionID</td>
+                    <td>@item.SectionName</td>
+                    <td>@item.WorkbaseID</td>
                 </tr>
             }
         </tbody>
