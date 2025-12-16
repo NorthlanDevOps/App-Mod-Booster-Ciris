@@ -140,6 +140,14 @@ CREATE OR ALTER PROCEDURE sp_CreateSection
 AS
 BEGIN
     SET NOCOUNT ON;
+    
+    -- Check if section name already exists (case-insensitive)
+    IF EXISTS (SELECT 1 FROM Section WHERE LOWER(Description) = LOWER(@Description) AND Archived = 0)
+    BEGIN
+        RAISERROR('A section with this name already exists.', 16, 1);
+        RETURN;
+    END
+    
     INSERT INTO Section (DepartmentID, Description, Archived, AuditUser)
     VALUES (@DepartmentID, @Description, 0, @AuditUser);
     
@@ -155,6 +163,14 @@ CREATE OR ALTER PROCEDURE sp_UpdateSection
 AS
 BEGIN
     SET NOCOUNT ON;
+    
+    -- Check if section name already exists for a different section (case-insensitive)
+    IF EXISTS (SELECT 1 FROM Section WHERE LOWER(Description) = LOWER(@Description) AND SectionID <> @SectionID AND Archived = 0)
+    BEGIN
+        RAISERROR('A section with this name already exists.', 16, 1);
+        RETURN;
+    END
+    
     UPDATE Section
     SET DepartmentID = @DepartmentID,
         Description = @Description,
