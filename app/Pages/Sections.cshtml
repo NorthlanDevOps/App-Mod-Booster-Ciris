@@ -1,0 +1,39 @@
+@page
+@model SectionsModel
+@{
+    ViewData["Title"] = "Sections";
+}
+
+@if (Model.ErrorInfo != null)
+{
+    <div class="error-banner">
+        <strong>⚠️ Database Connection Error:</strong><br/>
+        @Model.ErrorInfo.Message
+    </div>
+}
+
+<div class="page-header">
+    <h1>Sections</h1>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Section ID</th>
+                <th>Section Name</th>
+                <th>Workbase ID</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var section in Model.Sections)
+            {
+                <tr>
+                    <td>@section.SectionID</td>
+                    <td>@section.SectionName</td>
+                    <td>@section.WorkbaseID</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

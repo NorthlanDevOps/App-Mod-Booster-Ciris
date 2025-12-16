@@ -1,0 +1,56 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home";
+}
+
+@if (Model.ErrorInfo != null)
+{
+    <div class="error-banner">
+        <strong>⚠️ Database Connection Error:</strong><br/>
+        @Model.ErrorInfo.Message
+    </div>
+}
+
+<div class="hero">
+    <h1>App Modernization Booster</h1>
+    <p class="lead">Manage your properties, sections, workbases, and users</p>
+</div>
+
+<div class="card-grid">
+    <div class="card">
+        <h3>Properties</h3>
+        <p>Manage building properties and locations</p>
+        <a href="/Properties" class="btn btn-primary">View Properties</a>
+    </div>
+    
+    <div class="card">
+        <h3>Sections</h3>
+        <p>Organize and manage sections</p>
+        <a href="/Sections" class="btn btn-primary">View Sections</a>
+    </div>
+    
+    <div class="card">
+        <h3>Workbases</h3>
+        <p>Manage workbase locations and details</p>
+        <a href="/Workbases" class="btn btn-primary">View Workbases</a>
+    </div>
+    
+    <div class="card">
+        <h3>Users</h3>
+        <p>Manage system users and access</p>
+        <a href="/Users" class="btn btn-primary">View Users</a>
+    </div>
+    
+    <div class="card">
+        <h3>AI Chat Assistant</h3>
+        <p>Interact with your data using natural language</p>
+        <a href="/Chat" class="btn btn-primary">Open Chat</a>
+    </div>
+    
+    <div class="card">
+        <h3>API Documentation</h3>
+        <p>Explore and test the REST API</p>
+        <a href="/swagger" class="btn btn-primary">View API Docs</a>
+    </div>
+</div>
