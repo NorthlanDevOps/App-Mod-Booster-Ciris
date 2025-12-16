@@ -1,0 +1,187 @@
+@page "/chat"
+@model ExpenseManagement.Pages.Chat.IndexModel
+@{
+    ViewData["Title"] = "AI Chat Assistant";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card border-0 shadow-lg" style="height: 80vh;">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-chat-dots-fill"></i> AI Expense Assistant
+                    </h4>
+                    <small>Ask me anything about your expenses or use me to manage them</small>
+                </div>
+                <div class="card-body d-flex flex-column p-0">
+                    <div id="chatMessages" class="flex-grow-1 overflow-auto p-4" style="background-color: #f8f9fa;">
+                        @if (!Model.IsGenAIConfigured)
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle-fill"></i>
+                                <strong>GenAI Services Not Configured</strong>
+                                <p class="mb-0 mt-2">
+                                    The AI chat assistant requires Azure OpenAI to be deployed. 
+                                    To enable this feature, run the deployment with GenAI support:
+                                    <code>./deploy-with-chat.sh</code>
+                                </p>
+                            </div>
+                        }
+                        <div class="chat-message assistant">
+                            <div class="message-bubble">
+                                <strong>Assistant:</strong>
+                                <p>Hello! I'm your AI expense assistant. I can help you:</p>
+                                <ul>
+                                    <li>View your expenses</li>
+                                    <li>Create new expense claims</li>
+                                    <li>Check expense status</li>
+                                    <li>Get expense summaries</li>
+                                    <li>Answer questions about your expenses</li>
+                                </ul>
+                                <p>What would you like to do?</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-top">
+                        <form id="chatForm" class="d-flex gap-2">
+                            <input type="text" id="userMessage" class="form-control" 
+                                   placeholder="Type your message..." 
+                                   @(Model.IsGenAIConfigured ? "" : "disabled")>
+                            <button type="submit" class="btn btn-success" 
+                                    @(Model.IsGenAIConfigured ? "" : "disabled")>
+                                <i class="bi bi-send-fill"></i> Send
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const userMessage = document.getElementById('userMessage');
+    const isConfigured = @Model.IsGenAIConfigured.ToString().ToLower();
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatMessage(text) {
+        let formatted = escapeHtml(text);
+        
+        // Convert bold
+        formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        
+        // Convert numbered lists
+        formatted = formatted.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+        if (formatted.includes('<li>')) {
+            formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+        }
+        
+        // Convert bullet lists
+        formatted = formatted.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+        if (formatted.includes('<li>') && !formatted.includes('<ol>')) {
+            formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+        }
+        
+        // Convert line breaks
+        formatted = formatted.replace(/\n/g, '<br>');
+        
+        return formatted;
+    }
+
+    function addMessage(role, message) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message ' + role;
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.innerHTML = '<strong>' + (role === 'user' ? 'You' : 'Assistant') + ':</strong><div class="mt-2">' + formatMessage(message) + '</div>';
+        
+        messageDiv.appendChild(bubble);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    if (isConfigured && chatForm) {
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const message = userMessage.value.trim();
+            if (!message) return;
+            
+            addMessage('user', message);
+            userMessage.value = '';
+            userMessage.disabled = true;
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addMessage('assistant', data.response);
+                } else {
+                    addMessage('assistant', 'Sorry, I encountered an error processing your request.');
+                }
+            } catch (error) {
+                addMessage('assistant', 'Sorry, I could not connect to the service.');
+            } finally {
+                userMessage.disabled = false;
+                userMessage.focus();
+            }
+        });
+    }
+</script>
+<style>
+    .chat-message {
+        margin-bottom: 1rem;
+        display: flex;
+    }
+    
+    .chat-message.user {
+        justify-content: flex-end;
+    }
+    
+    .chat-message.assistant {
+        justify-content: flex-start;
+    }
+    
+    .message-bubble {
+        max-width: 70%;
+        padding: 1rem;
+        border-radius: 1rem;
+    }
+    
+    .chat-message.user .message-bubble {
+        background-color: #0d6efd;
+        color: white;
+    }
+    
+    .chat-message.assistant .message-bubble {
+        background-color: white;
+        border: 1px solid #dee2e6;
+    }
+    
+    .chat-message ul, .chat-message ol {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+    
+    .chat-message li {
+        margin-bottom: 0.25rem;
+    }
+</style>
+}
