@@ -144,7 +144,7 @@ BEGIN
     -- Check if section name already exists (case-insensitive)
     IF EXISTS (SELECT 1 FROM Section WHERE LOWER(Description) = LOWER(@Description) AND Archived = 0)
     BEGIN
-        RAISERROR('A section with this name already exists.', 16, 1);
+        RAISERROR('A section with this name already exists (validation is case-insensitive).', 16, 1);
         RETURN;
     END
     
@@ -167,7 +167,7 @@ BEGIN
     -- Check if section name already exists for a different section (case-insensitive)
     IF EXISTS (SELECT 1 FROM Section WHERE LOWER(Description) = LOWER(@Description) AND SectionID <> @SectionID AND Archived = 0)
     BEGIN
-        RAISERROR('A section with this name already exists.', 16, 1);
+        RAISERROR('A section with this name already exists (validation is case-insensitive).', 16, 1);
         RETURN;
     END
     
