@@ -1,0 +1,22 @@
+@page
+@model ChatModel
+@{
+    ViewData["Title"] = "AI Chat Assistant";
+}
+
+<div class="page-header">
+    <h1>AI Chat Assistant</h1>
+    <p>Ask questions about your data using natural language</p>
+</div>
+
+<div class="chat-container">
+    <div id="chat-messages" class="chat-messages"></div>
+    <div class="chat-input-container">
+        <input type="text" id="chat-input" class="chat-input" placeholder="Ask me about properties, sections, workbases, or users..." />
+        <button id="send-button" class="btn btn-primary">Send</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/chat.js"></script>
+}

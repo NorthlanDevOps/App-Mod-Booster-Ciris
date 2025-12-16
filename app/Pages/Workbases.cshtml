@@ -1,0 +1,45 @@
+@page
+@model WorkbasesModel
+@{
+    ViewData["Title"] = "Workbases";
+}
+
+@if (Model.ErrorInfo != null)
+{
+    <div class="error-banner">
+        <strong>⚠️ Database Connection Error:</strong><br/>
+        @Model.ErrorInfo.Message
+    </div>
+}
+
+<div class="page-header">
+    <h1>Workbases</h1>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Workbase ID</th>
+                <th>Workbase Name</th>
+                <th>Address 1</th>
+                <th>Address 2</th>
+                <th>Postcode</th>
+                <th>Telephone</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var workbase in Model.Workbases)
+            {
+                <tr>
+                    <td>@workbase.WorkbaseID</td>
+                    <td>@workbase.WorkbaseName</td>
+                    <td>@workbase.Address1</td>
+                    <td>@workbase.Address2</td>
+                    <td>@workbase.Postcode</td>
+                    <td>@workbase.Telephone</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

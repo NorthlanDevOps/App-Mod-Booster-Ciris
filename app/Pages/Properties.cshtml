@@ -1,0 +1,45 @@
+@page
+@model PropertiesModel
+@{
+    ViewData["Title"] = "Properties";
+}
+
+@if (Model.ErrorInfo != null)
+{
+    <div class="error-banner">
+        <strong>⚠️ Database Connection Error:</strong><br/>
+        @Model.ErrorInfo.Message
+    </div>
+}
+
+<div class="page-header">
+    <h1>Properties</h1>
+</div>
+
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Property ID</th>
+                <th>Building Name</th>
+                <th>House Number</th>
+                <th>Street Name</th>
+                <th>Postal Town</th>
+                <th>Postcode</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var property in Model.Properties)
+            {
+                <tr>
+                    <td>@property.PropertyID</td>
+                    <td>@property.BuildingName</td>
+                    <td>@property.HouseNumber</td>
+                    <td>@property.StreetName</td>
+                    <td>@property.PostalTown</td>
+                    <td>@property.Postcode</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
