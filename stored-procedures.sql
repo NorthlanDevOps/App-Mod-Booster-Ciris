@@ -88,8 +88,27 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
+    -- Input validation
+    IF @UserId IS NULL OR @UserId <= 0
+        THROW 50001, 'UserId is required and must be positive', 1;
+    
+    IF @CategoryId IS NULL OR @CategoryId <= 0
+        THROW 50002, 'CategoryId is required and must be positive', 1;
+    
+    IF @AmountMinor IS NULL OR @AmountMinor < 0
+        THROW 50003, 'AmountMinor is required and must be non-negative', 1;
+    
+    IF @Currency IS NULL OR LEN(@Currency) = 0
+        THROW 50004, 'Currency is required', 1;
+    
+    IF @ExpenseDate IS NULL
+        THROW 50005, 'ExpenseDate is required', 1;
+    
     DECLARE @StatusId INT;
     SELECT @StatusId = StatusId FROM dbo.ExpenseStatus WHERE StatusName = 'Draft';
+    
+    IF @StatusId IS NULL
+        THROW 50006, 'Draft status not found in database', 1;
     
     INSERT INTO dbo.Expenses (UserId, CategoryId, StatusId, AmountMinor, Currency, ExpenseDate, Description, ReceiptFile, CreatedAt)
     VALUES (@UserId, @CategoryId, @StatusId, @AmountMinor, @Currency, @ExpenseDate, @Description, @ReceiptFile, SYSUTCDATETIME());
@@ -131,8 +150,14 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
+    IF @ExpenseId IS NULL OR @ExpenseId <= 0
+        THROW 50001, 'ExpenseId is required and must be positive', 1;
+    
     DECLARE @StatusId INT;
     SELECT @StatusId = StatusId FROM dbo.ExpenseStatus WHERE StatusName = 'Submitted';
+    
+    IF @StatusId IS NULL
+        THROW 50002, 'Submitted status not found in database', 1;
     
     UPDATE dbo.Expenses
     SET StatusId = @StatusId,

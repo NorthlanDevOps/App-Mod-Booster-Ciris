@@ -108,6 +108,8 @@ sed -i.bak "s/SERVER = \"example.database.windows.net\"/SERVER = \"$SQL_SERVER_F
 sed -i.bak "s/DATABASE = \"Northwind\"/DATABASE = \"$DATABASE_NAME\"/g" run-sql-stored-procs.py && rm -f run-sql-stored-procs.py.bak
 
 # Update script.sql with managed identity name
+# Note: This modifies files in-place. For re-deployment, delete and recreate the resource group
+# or run 'git restore' to reset the files to their original state
 sed -i.bak "s/MANAGED-IDENTITY-NAME/$MANAGED_IDENTITY_NAME/g" script.sql && rm -f script.sql.bak
 
 # Import database schema
