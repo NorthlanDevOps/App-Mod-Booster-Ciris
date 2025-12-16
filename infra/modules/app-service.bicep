@@ -6,7 +6,7 @@ param uniqueSuffix string
 
 var appServicePlanName = 'asp-appmod-${uniqueSuffix}'
 var appServiceName = 'app-appmod-${uniqueSuffix}'
-var managedIdentityName = 'mid-appmodassist-16-10-32'
+var managedIdentityName = 'mid-appmodassist-${uniqueSuffix}'
 
 // Create User Assigned Managed Identity
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
