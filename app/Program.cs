@@ -21,6 +21,9 @@ builder.Services.AddSwaggerGen(c =>
 // Add Database Service
 builder.Services.AddSingleton<DatabaseService>();
 
+// Add Chat Service
+builder.Services.AddSingleton<ChatService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
