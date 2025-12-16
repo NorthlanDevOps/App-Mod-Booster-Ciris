@@ -1,6 +1,7 @@
 using Microsoft.Data.SqlClient;
 using AppModBooster.Models;
 using Azure.Identity;
+using System.Data;
 
 namespace AppModBooster.Services;
 
@@ -78,6 +79,7 @@ public class DatabaseService
                 Message = $"Database error: {ex.Message}. Using dummy data. " +
                          $"If using Managed Identity, ensure the identity '{_configuration["ManagedIdentityClientId"]}' " +
                          $"has been granted db_datareader, db_datawriter, and EXECUTE permissions on the database. " +
+                         $"Run the database role configuration script (run-sql-dbrole.py) to fix this. " +
                          $"Source: {GetType().Name}",
                 Source = ex.Source,
                 StackTrace = ex.StackTrace
@@ -87,6 +89,110 @@ public class DatabaseService
         }
     }
 
+    // Department Methods
+    public async Task<List<Department>> GetAllDepartmentsAsync()
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_GetAllDepartments", connection);
+            command.CommandType = CommandType.StoredProcedure;
+
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+            
+            var departments = new List<Department>();
+            while (await reader.ReadAsync())
+            {
+                departments.Add(new Department
+                {
+                    DepartmentID = reader.GetInt32(0),
+                    Description = reader.GetString(1),
+                    Archived = reader.GetBoolean(2),
+                    F2508Contact = reader.GetInt32(3)
+                });
+            }
+            return departments;
+        }, GetDummyDepartments());
+    }
+
+    public async Task<Department?> GetDepartmentByIdAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_GetDepartmentById", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@DepartmentID", id);
+
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+            
+            if (await reader.ReadAsync())
+            {
+                return new Department
+                {
+                    DepartmentID = reader.GetInt32(0),
+                    Description = reader.GetString(1),
+                    Archived = reader.GetBoolean(2),
+                    F2508Contact = reader.GetInt32(3)
+                };
+            }
+            return null;
+        }, null);
+    }
+
+    public async Task<int> CreateDepartmentAsync(Department department)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_CreateDepartment", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@Description", department.Description);
+            command.Parameters.AddWithValue("@F2508Contact", department.F2508Contact);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            var result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }, 0);
+    }
+
+    public async Task<bool> UpdateDepartmentAsync(Department department)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_UpdateDepartment", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@DepartmentID", department.DepartmentID);
+            command.Parameters.AddWithValue("@Description", department.Description);
+            command.Parameters.AddWithValue("@F2508Contact", department.F2508Contact);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
+    }
+
+    public async Task<bool> DeleteDepartmentAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_DeleteDepartment", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@DepartmentID", id);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
+    }
+
     // Property Methods
     public async Task<List<Property>> GetAllPropertiesAsync()
     {
@@ -94,28 +200,28 @@ public class DatabaseService
         {
             using var connection = GetConnection();
             using var command = new SqlCommand("sp_GetAllProperties", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.CommandType = CommandType.StoredProcedure;
 
             await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
+            
             var properties = new List<Property>();
-
             while (await reader.ReadAsync())
             {
                 properties.Add(new Property
                 {
                     PropertyID = reader.GetInt32(0),
-                    BuildingName = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    BuildingName = reader.GetString(1),
                     HouseNumber = reader.IsDBNull(2) ? null : reader.GetInt32(2),
                     HouseSuffix = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    StreetName = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    PostalTown = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    Postcode = reader.IsDBNull(6) ? null : reader.GetString(6)
+                    StreetName = reader.GetString(4),
+                    PostalTown = reader.GetString(5),
+                    Postcode = reader.GetString(6),
+                    Archived = reader.GetBoolean(7)
                 });
             }
-
             return properties;
-        }, GetDummyProperties()) ?? GetDummyProperties();
+        }, GetDummyProperties());
     }
 
     public async Task<Property?> GetPropertyByIdAsync(int id)
@@ -124,28 +230,108 @@ public class DatabaseService
         {
             using var connection = GetConnection();
             using var command = new SqlCommand("sp_GetPropertyById", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.CommandType = CommandType.StoredProcedure;
             command.Parameters.AddWithValue("@PropertyID", id);
 
             await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
-
+            
             if (await reader.ReadAsync())
             {
                 return new Property
                 {
                     PropertyID = reader.GetInt32(0),
-                    BuildingName = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    BuildingName = reader.GetString(1),
                     HouseNumber = reader.IsDBNull(2) ? null : reader.GetInt32(2),
                     HouseSuffix = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    StreetName = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    PostalTown = reader.IsDBNull(7) ? null : reader.GetString(7),
-                    Postcode = reader.IsDBNull(8) ? null : reader.GetString(8)
+                    StreetName = reader.GetString(4),
+                    TownVillage = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    PostalTown = reader.GetString(6),
+                    County = reader.IsDBNull(7) ? null : reader.GetString(7),
+                    Postcode = reader.GetString(8),
+                    TelephoneNumber = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    PropertyManager = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    EmailAddress = reader.IsDBNull(11) ? null : reader.GetString(11),
+                    Information = reader.IsDBNull(12) ? null : reader.GetString(12),
+                    UPRN = reader.IsDBNull(13) ? null : reader.GetInt32(13),
+                    Archived = reader.GetBoolean(14)
                 };
             }
-
             return null;
         }, null);
+    }
+
+    public async Task<int> CreatePropertyAsync(Property property)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_CreateProperty", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@BuildingName", property.BuildingName);
+            command.Parameters.AddWithValue("@HouseNumber", property.HouseNumber ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@HouseSuffix", property.HouseSuffix ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@StreetName", property.StreetName);
+            command.Parameters.AddWithValue("@TownVillage", property.TownVillage ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@PostalTown", property.PostalTown);
+            command.Parameters.AddWithValue("@County", property.County ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Postcode", property.Postcode);
+            command.Parameters.AddWithValue("@TelephoneNumber", property.TelephoneNumber ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@PropertyManager", property.PropertyManager ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@EmailAddress", property.EmailAddress ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Information", property.Information ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@UPRN", property.UPRN ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            var result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }, 0);
+    }
+
+    public async Task<bool> UpdatePropertyAsync(Property property)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_UpdateProperty", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@PropertyID", property.PropertyID);
+            command.Parameters.AddWithValue("@BuildingName", property.BuildingName);
+            command.Parameters.AddWithValue("@HouseNumber", property.HouseNumber ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@HouseSuffix", property.HouseSuffix ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@StreetName", property.StreetName);
+            command.Parameters.AddWithValue("@TownVillage", property.TownVillage ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@PostalTown", property.PostalTown);
+            command.Parameters.AddWithValue("@County", property.County ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Postcode", property.Postcode);
+            command.Parameters.AddWithValue("@TelephoneNumber", property.TelephoneNumber ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@PropertyManager", property.PropertyManager ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@EmailAddress", property.EmailAddress ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Information", property.Information ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@UPRN", property.UPRN ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
+    }
+
+    public async Task<bool> DeletePropertyAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_DeleteProperty", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@PropertyID", id);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
     }
 
     // Section Methods
@@ -155,24 +341,101 @@ public class DatabaseService
         {
             using var connection = GetConnection();
             using var command = new SqlCommand("sp_GetAllSections", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.CommandType = CommandType.StoredProcedure;
 
             await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
+            
             var sections = new List<Section>();
-
             while (await reader.ReadAsync())
             {
                 sections.Add(new Section
                 {
                     SectionID = reader.GetInt32(0),
-                    WorkbaseID = reader.IsDBNull(1) ? null : reader.GetInt32(1),
-                    SectionName = reader.IsDBNull(2) ? null : reader.GetString(2)
+                    DepartmentID = reader.GetInt32(1),
+                    Description = reader.GetString(2),
+                    Archived = reader.GetBoolean(3)
                 });
             }
-
             return sections;
-        }, GetDummySections()) ?? GetDummySections();
+        }, GetDummySections());
+    }
+
+    public async Task<Section?> GetSectionByIdAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_GetSectionById", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@SectionID", id);
+
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+            
+            if (await reader.ReadAsync())
+            {
+                return new Section
+                {
+                    SectionID = reader.GetInt32(0),
+                    DepartmentID = reader.GetInt32(1),
+                    Description = reader.GetString(2),
+                    Archived = reader.GetBoolean(3)
+                };
+            }
+            return null;
+        }, null);
+    }
+
+    public async Task<int> CreateSectionAsync(Section section)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_CreateSection", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@DepartmentID", section.DepartmentID);
+            command.Parameters.AddWithValue("@Description", section.Description);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            var result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }, 0);
+    }
+
+    public async Task<bool> UpdateSectionAsync(Section section)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_UpdateSection", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@SectionID", section.SectionID);
+            command.Parameters.AddWithValue("@DepartmentID", section.DepartmentID);
+            command.Parameters.AddWithValue("@Description", section.Description);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
+    }
+
+    public async Task<bool> DeleteSectionAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_DeleteSection", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@SectionID", id);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
     }
 
     // Workbase Methods
@@ -182,28 +445,105 @@ public class DatabaseService
         {
             using var connection = GetConnection();
             using var command = new SqlCommand("sp_GetAllWorkbases", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.CommandType = CommandType.StoredProcedure;
 
             await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
+            
             var workbases = new List<Workbase>();
-
             while (await reader.ReadAsync())
             {
                 workbases.Add(new Workbase
                 {
-                    WorkbaseID = reader.GetInt32(0),
-                    WorkbaseName = reader.IsDBNull(1) ? null : reader.GetString(1),
-                    Address1 = reader.IsDBNull(2) ? null : reader.GetString(2),
-                    Address2 = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    Address3 = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    Postcode = reader.IsDBNull(5) ? null : reader.GetString(5),
-                    Telephone = reader.IsDBNull(6) ? null : reader.GetString(6)
+                    WorkBaseID = reader.GetInt32(0),
+                    SectionID = reader.GetInt32(1),
+                    PropertyID = reader.GetInt32(2),
+                    Archived = reader.GetBoolean(3),
+                    SectionDescription = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    PropertyName = reader.IsDBNull(5) ? null : reader.GetString(5)
                 });
             }
-
             return workbases;
-        }, GetDummyWorkbases()) ?? GetDummyWorkbases();
+        }, GetDummyWorkbases());
+    }
+
+    public async Task<Workbase?> GetWorkbaseByIdAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_GetWorkbaseById", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@WorkbaseID", id);
+
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+            
+            if (await reader.ReadAsync())
+            {
+                return new Workbase
+                {
+                    WorkBaseID = reader.GetInt32(0),
+                    SectionID = reader.GetInt32(1),
+                    PropertyID = reader.GetInt32(2),
+                    Archived = reader.GetBoolean(3),
+                    SectionDescription = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    PropertyName = reader.IsDBNull(5) ? null : reader.GetString(5)
+                };
+            }
+            return null;
+        }, null);
+    }
+
+    public async Task<int> CreateWorkbaseAsync(Workbase workbase)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_CreateWorkbase", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@SectionID", workbase.SectionID);
+            command.Parameters.AddWithValue("@PropertyID", workbase.PropertyID);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            var result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }, 0);
+    }
+
+    public async Task<bool> UpdateWorkbaseAsync(Workbase workbase)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_UpdateWorkbase", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@WorkbaseID", workbase.WorkBaseID);
+            command.Parameters.AddWithValue("@SectionID", workbase.SectionID);
+            command.Parameters.AddWithValue("@PropertyID", workbase.PropertyID);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
+    }
+
+    public async Task<bool> DeleteWorkbaseAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_DeleteWorkbase", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@WorkbaseID", id);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
     }
 
     // User Methods
@@ -213,35 +553,158 @@ public class DatabaseService
         {
             using var connection = GetConnection();
             using var command = new SqlCommand("sp_GetAllUsers", connection);
-            command.CommandType = System.Data.CommandType.StoredProcedure;
+            command.CommandType = CommandType.StoredProcedure;
 
             await connection.OpenAsync();
             using var reader = await command.ExecuteReaderAsync();
+            
             var users = new List<User>();
-
             while (await reader.ReadAsync())
             {
                 users.Add(new User
                 {
-                    UserID = reader.GetInt32(0),
-                    UserName = reader.IsDBNull(1) ? null : reader.GetString(1),
-                    FirstName = reader.IsDBNull(2) ? null : reader.GetString(2),
-                    Email = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    SectionID = reader.IsDBNull(5) ? null : reader.GetInt32(5)
+                    UserId = reader.GetInt32(0),
+                    Forename = reader.GetString(1),
+                    Surname = reader.GetString(2),
+                    NetworkLogon = reader.GetString(3),
+                    DepartmentID = reader.GetInt32(4),
+                    SectionID = reader.GetInt32(5),
+                    WorkbaseID = reader.GetInt32(6),
+                    OccupationID = reader.GetInt32(7),
+                    EmailAddress = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    TelephoneNumber = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    Role = reader.GetInt32(10),
+                    DefaultDepartmentID = reader.GetInt32(11),
+                    DataAccessType = reader.GetInt32(12),
+                    Archived = reader.GetBoolean(13)
                 });
             }
-
             return users;
-        }, GetDummyUsers()) ?? GetDummyUsers();
+        }, GetDummyUsers());
+    }
+
+    public async Task<User?> GetUserByIdAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_GetUserById", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@UserId", id);
+
+            await connection.OpenAsync();
+            using var reader = await command.ExecuteReaderAsync();
+            
+            if (await reader.ReadAsync())
+            {
+                return new User
+                {
+                    UserId = reader.GetInt32(0),
+                    Forename = reader.GetString(1),
+                    Surname = reader.GetString(2),
+                    NetworkLogon = reader.GetString(3),
+                    DepartmentID = reader.GetInt32(4),
+                    SectionID = reader.GetInt32(5),
+                    WorkbaseID = reader.GetInt32(6),
+                    OccupationID = reader.GetInt32(7),
+                    EmailAddress = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    TelephoneNumber = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    Role = reader.GetInt32(10),
+                    DefaultDepartmentID = reader.GetInt32(11),
+                    DataAccessType = reader.GetInt32(12),
+                    Archived = reader.GetBoolean(13)
+                };
+            }
+            return null;
+        }, null);
+    }
+
+    public async Task<int> CreateUserAsync(User user)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_CreateUser", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@Forename", user.Forename);
+            command.Parameters.AddWithValue("@Surname", user.Surname);
+            command.Parameters.AddWithValue("@NetworkLogon", user.NetworkLogon);
+            command.Parameters.AddWithValue("@DepartmentID", user.DepartmentID);
+            command.Parameters.AddWithValue("@SectionID", user.SectionID);
+            command.Parameters.AddWithValue("@WorkbaseID", user.WorkbaseID);
+            command.Parameters.AddWithValue("@OccupationID", user.OccupationID);
+            command.Parameters.AddWithValue("@EmailAddress", user.EmailAddress ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@TelephoneNumber", user.TelephoneNumber ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Role", user.Role);
+            command.Parameters.AddWithValue("@DefaultDepartmentID", user.DefaultDepartmentID);
+            command.Parameters.AddWithValue("@DataAccessType", user.DataAccessType);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            var result = await command.ExecuteScalarAsync();
+            return Convert.ToInt32(result);
+        }, 0);
+    }
+
+    public async Task<bool> UpdateUserAsync(User user)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_UpdateUser", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@UserId", user.UserId);
+            command.Parameters.AddWithValue("@Forename", user.Forename);
+            command.Parameters.AddWithValue("@Surname", user.Surname);
+            command.Parameters.AddWithValue("@NetworkLogon", user.NetworkLogon);
+            command.Parameters.AddWithValue("@DepartmentID", user.DepartmentID);
+            command.Parameters.AddWithValue("@SectionID", user.SectionID);
+            command.Parameters.AddWithValue("@WorkbaseID", user.WorkbaseID);
+            command.Parameters.AddWithValue("@OccupationID", user.OccupationID);
+            command.Parameters.AddWithValue("@EmailAddress", user.EmailAddress ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@TelephoneNumber", user.TelephoneNumber ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@Role", user.Role);
+            command.Parameters.AddWithValue("@DefaultDepartmentID", user.DefaultDepartmentID);
+            command.Parameters.AddWithValue("@DataAccessType", user.DataAccessType);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
+    }
+
+    public async Task<bool> DeleteUserAsync(int id)
+    {
+        return await ExecuteWithErrorHandling(async () =>
+        {
+            using var connection = GetConnection();
+            using var command = new SqlCommand("sp_DeleteUser", connection);
+            command.CommandType = CommandType.StoredProcedure;
+            command.Parameters.AddWithValue("@UserId", id);
+            command.Parameters.AddWithValue("@AuditUser", "system");
+
+            await connection.OpenAsync();
+            await command.ExecuteNonQueryAsync();
+            return true;
+        }, false);
     }
 
     // Dummy Data Methods
+    private List<Department> GetDummyDepartments()
+    {
+        return new List<Department>
+        {
+            new() { DepartmentID = 1, Description = "Demo Department 1", Archived = false, F2508Contact = 0 },
+            new() { DepartmentID = 2, Description = "Demo Department 2", Archived = false, F2508Contact = 0 }
+        };
+    }
+
     private List<Property> GetDummyProperties()
     {
         return new List<Property>
         {
-            new() { PropertyID = 1, BuildingName = "Demo Building 1", HouseNumber = 10, StreetName = "Demo Street", PostalTown = "Demo Town", Postcode = "AB1 2CD" },
-            new() { PropertyID = 2, BuildingName = "Demo Building 2", HouseNumber = 20, StreetName = "Sample Road", PostalTown = "Sample Town", Postcode = "EF3 4GH" }
+            new() { PropertyID = 1, BuildingName = "Demo Building", StreetName = "Demo Street", PostalTown = "Demo Town", Postcode = "AB1 2CD", Archived = false }
         };
     }
 
@@ -249,8 +712,8 @@ public class DatabaseService
     {
         return new List<Section>
         {
-            new() { SectionID = 1, SectionName = "Demo Section 1", WorkbaseID = 1 },
-            new() { SectionID = 2, SectionName = "Demo Section 2", WorkbaseID = 1 }
+            new() { SectionID = 1, DepartmentID = 1, Description = "Demo Section 1", Archived = false },
+            new() { SectionID = 2, DepartmentID = 1, Description = "Demo Section 2", Archived = false }
         };
     }
 
@@ -258,7 +721,7 @@ public class DatabaseService
     {
         return new List<Workbase>
         {
-            new() { WorkbaseID = 1, WorkbaseName = "Demo Workbase", Address1 = "123 Demo Street", Postcode = "AB1 2CD", Telephone = "0123456789" }
+            new() { WorkBaseID = 1, SectionID = 1, PropertyID = 1, Archived = false, SectionDescription = "Demo Section", PropertyName = "Demo Building" }
         };
     }
 
@@ -266,7 +729,7 @@ public class DatabaseService
     {
         return new List<User>
         {
-            new() { UserID = 1, UserName = "demo.user", FirstName = "Demo", LastName = "User", Email = "demo@example.com", SectionID = 1 }
+            new() { UserId = 1, Forename = "Demo", Surname = "User", NetworkLogon = "demo.user", DepartmentID = 1, SectionID = 1, WorkbaseID = 1, OccupationID = 0, Role = 0, DefaultDepartmentID = 1, DataAccessType = 0, Archived = false }
         };
     }
 }

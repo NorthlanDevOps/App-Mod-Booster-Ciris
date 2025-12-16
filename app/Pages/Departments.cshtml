@@ -1,0 +1,47 @@
+@page
+@model AppModBooster.Pages.DepartmentsModel
+@{
+    ViewData["Title"] = "Departments";
+}
+
+@if (Model.ErrorInfo != null)
+{
+    <div class="alert alert-danger" role="alert">
+        <h5>Database Connection Error</h5>
+        <p>@Model.ErrorInfo.Message</p>
+        @if (!string.IsNullOrEmpty(Model.ErrorInfo.Source))
+        {
+            <small>Source: @Model.ErrorInfo.Source</small>
+        }
+    </div>
+}
+
+<div class="container mt-4">
+    <h1>Departments (Divisions)</h1>
+    <p>Manage organizational departments and divisions</p>
+    
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Description</th>
+                <th>F2508 Contact</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var dept in Model.Departments)
+            {
+                <tr>
+                    <td>@dept.DepartmentID</td>
+                    <td>@dept.Description</td>
+                    <td>@dept.F2508Contact</td>
+                    <td>
+                        <a href="#" class="btn btn-sm btn-primary">Edit</a>
+                        <a href="#" class="btn btn-sm btn-danger">Delete</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

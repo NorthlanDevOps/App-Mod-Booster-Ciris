@@ -2,12 +2,10 @@ namespace AppModBooster.Models;
 
 public class Workbase
 {
-    public int WorkbaseID { get; set; }
-    public string? WorkbaseName { get; set; }
-    public string? Address1 { get; set; }
-    public string? Address2 { get; set; }
-    public string? Address3 { get; set; }
-    public string? Postcode { get; set; }
-    public string? Telephone { get; set; }
-    public bool? Active { get; set; }
+    public int WorkBaseID { get; set; }
+    public int SectionID { get; set; }
+    public int PropertyID { get; set; }
+    public bool Archived { get; set; }
+    public string? SectionDescription { get; set; }
+    public string? PropertyName { get; set; }
 }

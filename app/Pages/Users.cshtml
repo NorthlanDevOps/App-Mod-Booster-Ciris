@@ -31,10 +31,10 @@
             @foreach (var user in Model.Users)
             {
                 <tr>
-                    <td>@user.UserID</td>
-                    <td>@user.UserName</td>
-                    <td>@user.FirstName</td>
-                    <td>@user.Email</td>
+                    <td>@user.UserId</td>
+                    <td>@user.NetworkLogon</td>
+                    <td>@user.Forename @user.Surname</td>
+                    <td>@user.EmailAddress</td>
                     <td>@user.SectionID</td>
                 </tr>
             }

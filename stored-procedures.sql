@@ -1,6 +1,73 @@
 -- ================================================
--- Stored Procedures for App Mod Booster
+-- Stored Procedures for App Mod Booster (HSIR3)
+-- Aligned with actual database schema
 -- ================================================
+
+-- Department Stored Procedures (Divisions)
+CREATE OR ALTER PROCEDURE sp_GetAllDepartments
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT DepartmentID, Description, Archived, F2508Contact
+    FROM Department
+    WHERE Archived = 0
+    ORDER BY Description;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_GetDepartmentById
+    @DepartmentID INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT DepartmentID, Description, Archived, F2508Contact
+    FROM Department
+    WHERE DepartmentID = @DepartmentID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_CreateDepartment
+    @Description VARCHAR(30),
+    @F2508Contact INT = 0,
+    @AuditUser VARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO Department (Description, Archived, AuditUser, F2508Contact)
+    VALUES (@Description, 0, @AuditUser, @F2508Contact);
+    
+    SELECT SCOPE_IDENTITY() AS DepartmentID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_UpdateDepartment
+    @DepartmentID INT,
+    @Description VARCHAR(30),
+    @F2508Contact INT = 0,
+    @AuditUser VARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Department
+    SET Description = @Description,
+        F2508Contact = @F2508Contact,
+        AuditUser = @AuditUser
+    WHERE DepartmentID = @DepartmentID;
+END
+GO
+
+CREATE OR ALTER PROCEDURE sp_DeleteDepartment
+    @DepartmentID INT,
+    @AuditUser VARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE Department
+    SET Archived = 1,
+        AuditUser = @AuditUser
+    WHERE DepartmentID = @DepartmentID;
+END
+GO
 
 -- Property Stored Procedures
 CREATE OR ALTER PROCEDURE sp_GetAllProperties
@@ -141,7 +208,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    -- Check if section name already exists (case-insensitive)
+    -- Check if section name already exists (case-insensitive per business logic)
     IF EXISTS (SELECT 1 FROM Section WHERE LOWER(Description) = LOWER(@Description) AND Archived = 0)
     BEGIN
         RAISERROR('A section with this name already exists (validation is case-insensitive).', 16, 1);
@@ -164,7 +231,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
-    -- Check if section name already exists for a different section (case-insensitive)
+    -- Check if section name already exists for a different section (case-insensitive per business logic)
     IF EXISTS (SELECT 1 FROM Section WHERE LOWER(Description) = LOWER(@Description) AND SectionID <> @SectionID AND Archived = 0)
     BEGIN
         RAISERROR('A section with this name already exists (validation is case-insensitive).', 16, 1);
@@ -193,15 +260,19 @@ END
 GO
 
 -- Workbase Stored Procedures
+-- Note: Workbase links Section to Property
 CREATE OR ALTER PROCEDURE sp_GetAllWorkbases
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT WorkbaseID, Description, Address1, Address2, Address3, 
-           Postcode, Telephone, Archived
-    FROM Workbase
-    WHERE Archived = 0
-    ORDER BY Description;
+    SELECT w.WorkBaseID, w.SectionID, w.PropertyID, w.Archived,
+           s.Description AS SectionDescription,
+           p.BuildingName AS PropertyName
+    FROM Workbase w
+    LEFT JOIN Section s ON w.SectionID = s.SectionID
+    LEFT JOIN Property p ON w.PropertyID = p.PropertyID
+    WHERE w.Archived = 0
+    ORDER BY s.Description, p.BuildingName;
 END
 GO
 
@@ -210,28 +281,25 @@ CREATE OR ALTER PROCEDURE sp_GetWorkbaseById
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT WorkbaseID, Description, Address1, Address2, Address3, 
-           Postcode, Telephone, Archived
-    FROM Workbase
-    WHERE WorkbaseID = @WorkbaseID;
+    SELECT w.WorkBaseID, w.SectionID, w.PropertyID, w.Archived,
+           s.Description AS SectionDescription,
+           p.BuildingName AS PropertyName
+    FROM Workbase w
+    LEFT JOIN Section s ON w.SectionID = s.SectionID
+    LEFT JOIN Property p ON w.PropertyID = p.PropertyID
+    WHERE w.WorkBaseID = @WorkbaseID;
 END
 GO
 
 CREATE OR ALTER PROCEDURE sp_CreateWorkbase
-    @Description VARCHAR(60),
-    @Address1 VARCHAR(60) = NULL,
-    @Address2 VARCHAR(60) = NULL,
-    @Address3 VARCHAR(60) = NULL,
-    @Postcode VARCHAR(10) = NULL,
-    @Telephone VARCHAR(20) = NULL,
+    @SectionID INT,
+    @PropertyID INT,
     @AuditUser VARCHAR(100)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO Workbase (Description, Address1, Address2, Address3, 
-                          Postcode, Telephone, Archived, AuditUser)
-    VALUES (@Description, @Address1, @Address2, @Address3, 
-            @Postcode, @Telephone, 0, @AuditUser);
+    INSERT INTO Workbase (SectionID, PropertyID, Archived, AuditUser)
+    VALUES (@SectionID, @PropertyID, 0, @AuditUser);
     
     SELECT SCOPE_IDENTITY() AS WorkbaseID;
 END
@@ -239,25 +307,17 @@ GO
 
 CREATE OR ALTER PROCEDURE sp_UpdateWorkbase
     @WorkbaseID INT,
-    @Description VARCHAR(60),
-    @Address1 VARCHAR(60) = NULL,
-    @Address2 VARCHAR(60) = NULL,
-    @Address3 VARCHAR(60) = NULL,
-    @Postcode VARCHAR(10) = NULL,
-    @Telephone VARCHAR(20) = NULL,
+    @SectionID INT,
+    @PropertyID INT,
     @AuditUser VARCHAR(100)
 AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE Workbase
-    SET Description = @Description,
-        Address1 = @Address1,
-        Address2 = @Address2,
-        Address3 = @Address3,
-        Postcode = @Postcode,
-        Telephone = @Telephone,
+    SET SectionID = @SectionID,
+        PropertyID = @PropertyID,
         AuditUser = @AuditUser
-    WHERE WorkbaseID = @WorkbaseID;
+    WHERE WorkBaseID = @WorkbaseID;
 END
 GO
 
@@ -270,81 +330,108 @@ BEGIN
     UPDATE Workbase
     SET Archived = 1,
         AuditUser = @AuditUser
-    WHERE WorkbaseID = @WorkbaseID;
+    WHERE WorkBaseID = @WorkbaseID;
 END
 GO
 
 -- User Stored Procedures
+-- Note: Schema uses Forename/Surname, NetworkLogon, not UserName/Name
 CREATE OR ALTER PROCEDURE sp_GetAllUsers
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT UserID, UserName, Name, Email, Mobile, SectionID, 
-           Administrator, Archived
+    SELECT UserId, Forename, Surname, NetworkLogon, 
+           DepartmentID, SectionID, WorkbaseID, OccupationID,
+           EmailAddress, TelephoneNumber, Role, DefaultDepartmentID,
+           DataAccessType, Archived
     FROM [User]
     WHERE Archived = 0
-    ORDER BY Name;
+    ORDER BY Surname, Forename;
 END
 GO
 
 CREATE OR ALTER PROCEDURE sp_GetUserById
-    @UserID INT
+    @UserId INT
 AS
 BEGIN
     SET NOCOUNT ON;
-    SELECT UserID, UserName, Name, Email, Mobile, SectionID, 
-           Administrator, Archived
+    SELECT UserId, Forename, Surname, NetworkLogon, 
+           DepartmentID, SectionID, WorkbaseID, OccupationID,
+           EmailAddress, TelephoneNumber, Role, DefaultDepartmentID,
+           DataAccessType, Archived
     FROM [User]
-    WHERE UserID = @UserID;
+    WHERE UserId = @UserId;
 END
 GO
 
 CREATE OR ALTER PROCEDURE sp_CreateUser
-    @UserName VARCHAR(50),
-    @Name VARCHAR(100),
-    @Email VARCHAR(100) = NULL,
-    @Mobile VARCHAR(20) = NULL,
-    @SectionID INT = NULL,
-    @Administrator BIT = 0,
+    @Forename VARCHAR(30),
+    @Surname VARCHAR(30),
+    @NetworkLogon VARCHAR(100),
+    @DepartmentID INT,
+    @SectionID INT,
+    @WorkbaseID INT,
+    @OccupationID INT = 0,
+    @EmailAddress VARCHAR(100) = NULL,
+    @TelephoneNumber VARCHAR(20) = NULL,
+    @Role INT = 0,
+    @DefaultDepartmentID INT = 0,
+    @DataAccessType INT = 0,
     @AuditUser VARCHAR(100)
 AS
 BEGIN
     SET NOCOUNT ON;
-    INSERT INTO [User] (UserName, Name, Email, Mobile, SectionID, 
-                        Administrator, Archived, AuditUser)
-    VALUES (@UserName, @Name, @Email, @Mobile, @SectionID, 
-            @Administrator, 0, @AuditUser);
+    INSERT INTO [User] (Forename, Surname, NetworkLogon, DepartmentID, 
+                        SectionID, WorkbaseID, OccupationID, EmailAddress, 
+                        TelephoneNumber, Role, DefaultDepartmentID, 
+                        DataAccessType, Archived, AuditUser)
+    VALUES (@Forename, @Surname, @NetworkLogon, @DepartmentID, 
+            @SectionID, @WorkbaseID, @OccupationID, @EmailAddress, 
+            @TelephoneNumber, @Role, @DefaultDepartmentID, 
+            @DataAccessType, 0, @AuditUser);
     
-    SELECT SCOPE_IDENTITY() AS UserID;
+    SELECT SCOPE_IDENTITY() AS UserId;
 END
 GO
 
 CREATE OR ALTER PROCEDURE sp_UpdateUser
-    @UserID INT,
-    @UserName VARCHAR(50),
-    @Name VARCHAR(100),
-    @Email VARCHAR(100) = NULL,
-    @Mobile VARCHAR(20) = NULL,
-    @SectionID INT = NULL,
-    @Administrator BIT = 0,
+    @UserId INT,
+    @Forename VARCHAR(30),
+    @Surname VARCHAR(30),
+    @NetworkLogon VARCHAR(100),
+    @DepartmentID INT,
+    @SectionID INT,
+    @WorkbaseID INT,
+    @OccupationID INT = 0,
+    @EmailAddress VARCHAR(100) = NULL,
+    @TelephoneNumber VARCHAR(20) = NULL,
+    @Role INT = 0,
+    @DefaultDepartmentID INT = 0,
+    @DataAccessType INT = 0,
     @AuditUser VARCHAR(100)
 AS
 BEGIN
     SET NOCOUNT ON;
     UPDATE [User]
-    SET UserName = @UserName,
-        Name = @Name,
-        Email = @Email,
-        Mobile = @Mobile,
+    SET Forename = @Forename,
+        Surname = @Surname,
+        NetworkLogon = @NetworkLogon,
+        DepartmentID = @DepartmentID,
         SectionID = @SectionID,
-        Administrator = @Administrator,
+        WorkbaseID = @WorkbaseID,
+        OccupationID = @OccupationID,
+        EmailAddress = @EmailAddress,
+        TelephoneNumber = @TelephoneNumber,
+        Role = @Role,
+        DefaultDepartmentID = @DefaultDepartmentID,
+        DataAccessType = @DataAccessType,
         AuditUser = @AuditUser
-    WHERE UserID = @UserID;
+    WHERE UserId = @UserId;
 END
 GO
 
 CREATE OR ALTER PROCEDURE sp_DeleteUser
-    @UserID INT,
+    @UserId INT,
     @AuditUser VARCHAR(100)
 AS
 BEGIN
@@ -352,6 +439,6 @@ BEGIN
     UPDATE [User]
     SET Archived = 1,
         AuditUser = @AuditUser
-    WHERE UserID = @UserID;
+    WHERE UserId = @UserId;
 END
 GO
