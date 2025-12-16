@@ -5,3 +5,5 @@ make sure to create one summary script to deploy any infrastructure as code and 
 if other parts of my instruction ask for scripts try to combine them sensibly into this summary so the output has separate IaC files for each service deployed to azure plus the summary script calling them all.
 
 make sure to use the screenshots found in the repo along with the data base schema to ensure that all APIs and functionality matches those
+
+the screenshots that end with the word "create" are show how to create a new record. For example DivisionCreate.png is the create screen for the division entity. this is the same for "edit". The "maintenance" screenshot show how to list entities and allow the user to create and edit individual entities.

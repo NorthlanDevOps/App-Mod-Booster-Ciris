@@ -11,5 +11,5 @@ make sure the app targets .NET 8 (LTS)
 <TargetFramework>net8.0</TargetFramework>
 
 
-
+ensure each entity has a create, edit and delete endpoints for the controllers and the api.
 
