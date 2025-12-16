@@ -67,5 +67,58 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture diagram and dat
 - ✅ Stored procedures prevent SQL injection
 - ✅ HTTPS only enforcement
 
+## Documentation
+
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete deployment guide with troubleshooting
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture and data flow diagrams
+
+## Project Structure
+
+```
+.
+├── infra/                      # Azure Bicep infrastructure as code
+│   ├── main.bicep             # Main deployment template
+│   └── modules/               # Reusable Bicep modules
+│       ├── app-service.bicep  # App Service and Managed Identity
+│       ├── azure-sql.bicep    # SQL Server and Database
+│       └── genai.bicep        # Azure OpenAI and Cognitive Search
+├── app/                       # .NET 8 Application
+│   ├── Controllers/           # REST API controllers
+│   ├── Models/                # Data models
+│   ├── Pages/                 # Razor Pages UI
+│   ├── Services/              # Business logic services
+│   ├── wwwroot/               # Static files (CSS, JS)
+│   └── app.zip                # Pre-built deployment package
+├── Database-Schema/           # SQL database schema
+├── Legacy-Screenshots/        # Original app screenshots for reference
+├── deploy.sh                  # Basic deployment script
+├── deploy-with-chat.sh        # Full deployment with AI
+├── build-app.sh               # Application build script
+├── run-sql.py                 # Schema import script
+├── run-sql-dbrole.py          # Database role configuration
+├── run-sql-stored-procs.py    # Stored procedure deployment
+├── script.sql                 # Managed identity role assignment
+└── stored-procedures.sql      # All database stored procedures
+```
+
+## Technology Stack
+
+- **Backend**: ASP.NET Core 8.0 (LTS), C# 12
+- **Database**: Azure SQL Database with Entra ID authentication
+- **AI**: Azure OpenAI (GPT-4o) with function calling
+- **Search**: Azure Cognitive Search for RAG
+- **Authentication**: Managed Identity (no secrets!)
+- **Infrastructure**: Azure Bicep
+- **Deployment**: Bash + Azure CLI + Python
+
+## Contributing
+
+This project follows the App Modernization Booster pattern. To contribute:
+
+1. Review the prompts in the `prompts/` directory
+2. Update the relevant prompt files with improvements
+3. Test changes by forking the repo and running the agent
+4. Submit a pull request with your enhancements
+
 Supporting slides for Microsoft Employees:
 [Here](<https://microsofteur-my.sharepoint.com/:p:/g/personal/dchisholm_microsoft_com/IQAY41LQ12fjSIfFz3ha4hfFAZc7JQQuWaOrF7ObgxRK6f4?e=p6arJs>)
